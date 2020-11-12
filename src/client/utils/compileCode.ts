@@ -1,7 +1,7 @@
-import { transform, TransformOptions } from 'buble';
-import transpileImports from './transpileImports';
-
-const compile = (code: string, config: TransformOptions): string => transform(code, config).code;
+// eslint-disable-next-line import/no-unresolved
+import * as compiler from 'rsg-compiler';
+import insertReturnLastExpression from './insertReturnLastExpression';
+import * as Rsg from '../../typings';
 
 const startsWithJsx = (code: string): boolean => !!code.trim().match(/^</);
 
@@ -9,22 +9,22 @@ const wrapCodeInFragment = (code: string): string => `<React.Fragment>${code}</R
 
 /*
  * 1. Wrap code in React Fragment if it starts with JSX element
- * 2. Transform import statements into require() calls
- * 3. Compile code using Buble
+ * 2. Compile code using given compiler
+ * 3. Wrap the last top-level expression in a return statement.
  */
 export default function compileCode(
 	code: string,
-	compilerConfig: TransformOptions,
+	compileExample: Rsg.SanitizedStyleguidistConfig['compileExample'],
 	onError?: (err: Error) => void
 ): string {
+	const wrappedCode = startsWithJsx(code) ? wrapCodeInFragment(code) : code;
 	try {
-		const wrappedCode = startsWithJsx(code) ? wrapCodeInFragment(code) : code;
-		const compiledCode = compile(wrappedCode, compilerConfig);
-		return transpileImports(compiledCode);
+		const compiledCode = compileExample(compiler, wrappedCode);
+		return insertReturnLastExpression(compiledCode);
 	} catch (err) {
 		if (onError) {
 			onError(err);
 		}
+		return '';
 	}
-	return '';
 }
